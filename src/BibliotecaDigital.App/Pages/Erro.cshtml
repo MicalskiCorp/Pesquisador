@@ -1,0 +1,14 @@
+@page "/erro"
+@{
+    ViewData["Titulo"] = "Algo deu errado";
+    var codigo = Request.Query["codigo"].ToString();
+    var erro = HttpContext.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>()?.Error;
+    var mensagem = codigo == "404" || erro is KeyNotFoundException
+        ? "Não encontramos o que você procurou. O endereço pode estar incompleto, ou o documento saiu do acervo."
+        : erro is InvalidOperationException ? erro.Message : "A Biblioteca Digital encontrou um erro. Ele foi registrado em dados/biblioteca.log.";
+}
+<div class="vazio">
+    <h1 style="font-family: var(--leitura); color: var(--texto)">@(codigo == "404" ? "Página não encontrada" : "Algo deu errado")</h1>
+    <p>@mensagem</p>
+    <p><a class="botao secundario" href="/">Voltar à busca</a></p>
+</div>

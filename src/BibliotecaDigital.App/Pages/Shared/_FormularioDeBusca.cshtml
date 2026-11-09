@@ -1,0 +1,37 @@
+@model IndexModel
+@{
+    var modo = Realce.Modo(Model.ModoAtual);
+    var ajuda = IndexModel.Modos.First(m => m.Id == modo).Ajuda;
+}
+<form class="busca @(Model.Resultado is null ? "centro" : "")" method="get" action="/" role="search">
+    <div class="caixa">
+        <input name="q" value="@Model.Q" autofocus placeholder="Ex.: um nome · &quot;ponte de ferro&quot; · enchente 1911" aria-label="O que procurar">
+        <button class="botao" type="submit">Buscar</button>
+    </div>
+    @if (Model.Colecoes.Count > 0)
+    {
+        <div class="modos" role="radiogroup" aria-label="Onde procurar">
+            <span class="rotulo-grupo">Onde</span>
+            <label><input type="radio" name="colecao" value="" checked="@string.IsNullOrEmpty(Model.Colecao)" @(Model.Resultado is null ? "" : "data-enviar-ao-mudar")><span>Todo o acervo</span></label>
+            @foreach (var c in Model.Colecoes.Where(c => c.Documentos > 0))
+            {
+                <label><input type="radio" name="colecao" value="@c.Colecao.Id" checked="@(c.Colecao.Id == Model.Colecao)" @(Model.Resultado is null ? "" : "data-enviar-ao-mudar")><span>@c.Colecao.Nome <small>@c.Documentos.ToString("N0")</small></span></label>
+            }
+        </div>
+    }
+    <div class="modos" role="radiogroup" aria-label="Modo de busca">
+        <span class="rotulo-grupo">Como</span>
+        @foreach (var m in IndexModel.Modos)
+        {
+            <label><input type="radio" name="modo" value="@m.Id" checked="@(m.Id == modo)" @(Model.Resultado is null ? "" : "data-enviar-ao-mudar")><span>@m.Nome</span></label>
+        }
+    </div>
+    <div class="ajuda">@ajuda</div>
+    <div class="filtros">
+        <span>Período</span>
+        <input name="de" inputmode="numeric" maxlength="4" placeholder="de" value="@Model.De" aria-label="Ano inicial">
+        <input name="ate" inputmode="numeric" maxlength="4" placeholder="até" value="@Model.Ate" aria-label="Ano final">
+        <span>Autor do artigo</span>
+        <input class="largo" name="autor" placeholder="opcional" value="@Model.Autor" aria-label="Autor do artigo">
+    </div>
+</form>

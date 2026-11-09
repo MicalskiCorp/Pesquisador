@@ -1,0 +1,25 @@
+# O acervo (acervo/) é da instituição e nunca entra neste repositório, que é público e só tem o
+# programa. Fica de fora também o que é derivado e se refaz com um comando.
+/acervo/
+
+# Índice de busca e envios em prévia (dados/), refeitos com `biblioteca reindexar`
+/dados/
+*.db
+*.db-shm
+*.db-wal
+# Arquivos temporários da gravação atômica
+*.gravando
+
+# .NET
+bin/
+obj/
+*.user
+.vs/
+TestResults/
+
+# Pacote gerado pelo publicar.ps1
+/publicado/
+
+# Sistema
+Thumbs.db
+.DS_Store

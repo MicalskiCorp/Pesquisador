@@ -1,0 +1,100 @@
+@page "/curadoria/colecao"
+@model BibliotecaDigital.App.Pages.Curadoria.ColecaoModel
+@{
+    ViewData["Secao"] = "curadoria";
+    ViewData["Titulo"] = Model.Nova ? "Nova coleção" : "Coleção — " + Model.NomeDaColecao;
+    var linhas = Model.Campos.Count + BibliotecaDigital.App.Pages.Curadoria.ColecaoModel.LinhasEmBranco;
+    var idTravado = !Model.Nova && Model.Documentos > 0;
+}
+<div class="trilha"><a href="/curadoria/colecoes">← coleções</a></div>
+<h1 style="font-family: var(--leitura); font-weight: 600; margin: 6px 0 16px">@(Model.Nova ? "Nova coleção" : Model.NomeDaColecao)</h1>
+@if (Model.Erros.Count > 0)
+{
+    <div class="aviso erro">@foreach (var e in Model.Erros) { <div>@e</div> }</div>
+}
+@if (!Model.Nova && Model.Documentos > 0)
+{
+    <div class="aviso">Esta coleção tem @Model.Documentos documentos. Mudanças de pastas valem para os próximos documentos — os já incluídos não mudam de lugar.
+        Mudança nas linhas de carimbo ou na decodificação vale para o texto quando ele for refeito (<code>biblioteca reextrair --todos</code>).</div>
+}
+
+<form method="post" class="formulario" style="max-width:980px">
+    <input type="hidden" name="id" value="@Model.Id">
+    <div class="duas-colunas" style="grid-template-columns: 1fr 1fr">
+        <label class="campo"><span>Nome *</span><input name="NomeDaColecao" value="@Model.NomeDaColecao" required placeholder="Ex.: Jornal NSC"></label>
+        <label class="campo"><span>Identificador</span><input name="NovoId" value="@Model.NovoId" disabled="@idTravado" placeholder="sai do nome: jornal-nsc">
+            <small>Vira o nome da pasta da coleção@(idTravado ? "; não muda depois que há documentos" : "")</small></label>
+    </div>
+    <label class="campo"><span>Descrição</span><input name="Descricao" value="@Model.Descricao" placeholder="O que é esta coleção, de onde vem"></label>
+
+    <div class="secao" style="margin-top:6px">
+        <h2>Campos da ficha</h2>
+        <table class="tabela">
+            <thead><tr><th>Rótulo</th><th>Chave</th><th>Tipo</th><th>Obrigatório</th><th>Opções (para “lista”)</th><th>Ajuda</th></tr></thead>
+            <tbody>
+                @for (var i = 0; i < linhas; i++)
+                {
+                    var c = i < Model.Campos.Count ? Model.Campos[i] : null;
+                    <tr>
+                        <td><input name="Campos[@i].Rotulo" value="@c?.Rotulo" aria-label="Rótulo"></td>
+                        <td style="width:120px"><input name="Campos[@i].Chave" value="@c?.Chave" placeholder="automática" aria-label="Chave"></td>
+                        <td style="width:110px">
+                            <select name="Campos[@i].Tipo" class="entrada" style="height:30px; width:100%">
+                                @foreach (var (t, n) in new[] { ("texto", "texto"), ("numero", "número"), ("ano", "ano"), ("data", "data"), ("opcoes", "lista") })
+                                {
+                                    <option value="@t" selected="@((c?.Tipo ?? "texto") == t)">@n</option>
+                                }
+                            </select>
+                        </td>
+                        <td style="width:80px; text-align:center"><input type="checkbox" name="Campos[@i].Obrigatorio" value="true" checked="@(c?.Obrigatorio ?? false)" aria-label="Obrigatório"></td>
+                        <td><input name="Campos[@i].Opcoes" value="@c?.Opcoes" placeholder="@(c?.Tipo == "opcoes" ? "Geral, Esportes" : "")" aria-label="Opções"></td>
+                        <td><input name="Campos[@i].Ajuda" value="@c?.Ajuda" aria-label="Ajuda"></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        <small class="apagado">Linhas em branco são ignoradas; para remover um campo, apague o rótulo e a chave. Os documentos já incluídos guardam os valores que têm.</small>
+    </div>
+
+    <div class="duas-colunas" style="grid-template-columns: 1fr 1fr; margin-top:10px">
+        <label class="campo"><span>Organização das pastas</span>
+            <select name="Pastas" class="entrada">
+                @foreach (var (v, n) in BibliotecaDigital.App.Pages.Curadoria.ColecaoModel.OpcoesDePasta)
+                {
+                    <option value="@v" selected="@(v == Model.Pastas)">@n</option>
+                }
+                @if (BibliotecaDigital.App.Pages.Curadoria.ColecaoModel.OpcoesDePasta.All(o => o.Valor != Model.Pastas))
+                {
+                    <option value="@Model.Pastas" selected>@Model.Pastas</option>
+                }
+            </select>
+            <small>Ano, década e mês saem do campo de ano ou de data.</small>
+        </label>
+        <label class="campo"><span>Modelo do título</span><input name="Titulo" value="@Model.Titulo">
+            <small>Campos entre chaves: {colecao}, {arquivo} e as chaves acima. Ex.: {colecao} — {data}</small></label>
+    </div>
+
+    <div class="secao">
+        <h2>Numeração e desfalques <span class="apagado pequeno">(periódicos)</span></h2>
+        <label style="display:flex; gap:8px; align-items:center"><input type="checkbox" name="TemNumeracao" value="true" checked="@Model.TemNumeracao"> Esta coleção sai em edições numeradas — calcular as que faltam</label>
+        <div class="duas-colunas" style="grid-template-columns: 1fr 1fr 1fr; margin-top:10px">
+            <label class="campo"><span>Campo do grupo</span><input name="Grupo" value="@Model.Grupo" placeholder="volume"><small>Tomo, volume, ano da publicação</small></label>
+            <label class="campo"><span>Campo do número</span><input name="Numero" value="@Model.Numero" placeholder="numero"></label>
+            <label class="campo"><span>Edições por grupo</span><textarea name="Faixas" style="min-height:60px">@Model.Faixas</textarea><small>Uma por linha: “12 até 2007” e “6” = doze até 2007, seis depois</small></label>
+        </div>
+    </div>
+
+    <details class="secao">
+        <summary style="cursor:pointer; font-weight:600">Avançado: nome dos arquivos e carimbos</summary>
+        <div class="duas-colunas" style="grid-template-columns: 1fr 1fr; margin-top:10px">
+            <label class="campo"><span>Sugestão de campos pelo nome do arquivo</span><textarea name="NomesDeArquivo" placeholder="^(?&lt;data&gt;\d{2}-\d{2}-\d{4})">@Model.NomesDeArquivo</textarea>
+                <small>Expressões regulares com grupos nomeados pelas chaves, uma por linha. Opcional.</small></label>
+            <label class="campo"><span>Linhas de carimbo ou cabeçalho fixo</span><textarea name="Margens" placeholder="Digitalizado pela instituição">@Model.Margens</textarea>
+                <small>Uma por linha: a linha que começa com esse texto sai do corpo e fica como margem. Com ^ no início, é expressão regular.</small></label>
+        </div>
+        <label style="display:flex; gap:8px; align-items:center; margin-top:8px"><input type="checkbox" name="DesfazerMeiaLargura" value="true" checked="@Model.DesfazerMeiaLargura"><input type="hidden" name="DesfazerMeiaLargura" value="false"> Decodificar letras “meia-largura” (defeito do OCR de alguns PDFs antigos; inofensivo nos demais)</label>
+    </details>
+
+    <label class="campo"><span>Seu nome</span><input name="Por" value="@Model.Nome" placeholder="Fica no registro"></label>
+    <div class="acoes"><button class="botao">@(Model.Nova ? "Criar coleção" : "Salvar")</button><a class="botao discreto" href="/curadoria/colecoes">Cancelar</a></div>
+</form>

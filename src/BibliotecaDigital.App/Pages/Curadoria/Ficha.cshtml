@@ -1,0 +1,87 @@
+@page "/curadoria/ficha"
+@model BibliotecaDigital.App.Pages.Curadoria.FichaModel
+@{
+    ViewData["Secao"] = "curadoria";
+    ViewData["Titulo"] = "Ficha — " + Model.Ficha.Titulo;
+    var linhas = Model.Artigos.Count + BibliotecaDigital.App.Pages.Curadoria.FichaModel.LinhasEmBranco;
+    var travados = Model.Colecao.CamposDaPasta();
+}
+<div class="trilha"><a href="@Pages.PaginaBase.LinkDoDocumento(Model.Id)">← voltar à edição</a></div>
+<h1 style="font-family: var(--leitura); font-weight: 600; margin: 6px 0 18px">@Model.Ficha.Titulo</h1>
+@if (Model.Erro is not null) { <div class="aviso erro">@Model.Erro</div> }
+@if (Model.Ok is not null) { <div class="aviso ok">@Model.Ok</div> }
+
+<div class="duas-colunas">
+    <form method="post" asp-page-handler="Salvar" class="formulario" style="max-width:none">
+        <input type="hidden" name="id" value="@Model.Id">
+        <label class="campo"><span>Título</span><input name="Titulo" value="@Model.Titulo"></label>
+        @foreach (var c in Model.Colecao.Campos)
+        {
+            <label class="campo"><span>@c.Rotulo@(c.Obrigatorio ? " *" : "")</span>
+                @if (travados.Contains(c.Chave))
+                {
+                    <input value="@Model.Campos.GetValueOrDefault(c.Chave)" disabled>
+                    <input type="hidden" name="Campos[@c.Chave]" value="@Model.Campos.GetValueOrDefault(c.Chave)">
+                    <small>Define a pasta do documento e não se edita aqui.</small>
+                }
+                else
+                {
+                    <input name="Campos[@c.Chave]" value="@Model.Campos.GetValueOrDefault(c.Chave)">
+                    @if (c.Ajuda is not null) { <small>@c.Ajuda</small> }
+                }
+            </label>
+        }
+        <label class="campo"><span>Páginas impressas ajustadas à mão</span>
+            <textarea name="PaginasImpressas" placeholder="10 = 8&#10;20 = 36-37">@Model.PaginasImpressas</textarea>
+            <small>Uma linha por página, “página do PDF = impressa”. Só onde a detecção automática errou: o ajuste vence a detecção.</small>
+        </label>
+
+        <div class="secao" style="margin-top:8px">
+            <h2>Artigos</h2>
+            <table class="tabela">
+                <thead><tr><th>Título</th><th>Autor</th><th>Seção</th><th style="width:90px">Págs. impressas</th></tr></thead>
+                <tbody>
+                    @for (var i = 0; i < linhas; i++)
+                    {
+                        var a = i < Model.Artigos.Count ? Model.Artigos[i] : null;
+                        <tr>
+                            <td><input name="Artigos[@i].Titulo" value="@a?.Titulo" aria-label="Título do artigo"></td>
+                            <td><input name="Artigos[@i].Autor" value="@a?.Autor" aria-label="Autor"></td>
+                            <td><input name="Artigos[@i].Secao" value="@a?.Secao" aria-label="Seção"></td>
+                            <td><input name="Artigos[@i].Paginas" value="@a?.Paginas" aria-label="Páginas impressas"><input type="hidden" name="Artigos[@i].Fonte" value="@a?.Fonte"></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            <small class="apagado">Linhas em branco são ignoradas; para remover um artigo, apague o título. Precisa de mais linhas? Salve e volte.</small>
+        </div>
+
+        <label class="campo"><span>Seu nome</span><input name="Por" value="@Model.Nome" placeholder="Fica no histórico da ficha"></label>
+        <div class="acoes"><button class="botao">Salvar e reindexar</button></div>
+    </form>
+
+    <aside>
+        <div class="secao" style="margin-top:0">
+            <h2>Arquivo</h2>
+            <div class="destino">@Model.Caminho</div>
+            <p class="apagado pequeno">@Model.Ficha.Pdf.Paginas páginas · @((Model.Ficha.Pdf.Bytes / 1048576.0).ToString("0.0")) MB · SHA-256 @Model.Ficha.Pdf.Sha256[..16]…</p>
+        </div>
+        <form class="secao formulario" method="post" enctype="multipart/form-data" asp-page-handler="Substituir">
+            <h2 style="margin:0">Substituir o PDF original</h2>
+            <p class="apagado pequeno" style="margin:0">Para trocar por uma digitalização melhor. O arquivo anterior é guardado em <code>.substituidos/</code> e o texto é refeito.</p>
+            <input type="hidden" name="id" value="@Model.Id">
+            <input type="hidden" name="Por" value="@Model.Nome">
+            <input type="file" name="arquivo" accept="application/pdf" required>
+            <div><button class="botao secundario p" onclick="return confirm('Substituir o PDF original desta edição?')">Substituir</button></div>
+        </form>
+        <div class="secao">
+            <h2>Histórico</h2>
+            <table class="tabela">
+                @foreach (var h in Model.Ficha.Historico.AsEnumerable().Reverse())
+                {
+                    <tr><td class="apagado" style="white-space:nowrap">@h.Em.ToString("dd/MM/yyyy HH:mm")</td><td>@h.Por</td><td>@h.Acao@(h.Detalhe is null ? "" : " — " + h.Detalhe)</td></tr>
+                }
+            </table>
+        </div>
+    </aside>
+</div>

@@ -1,0 +1,7 @@
+@model string
+<nav class="abas">
+    <a class="@(Model == "incluir" ? "ativa" : "")" href="/curadoria/incluir">Incluir no acervo</a>
+    <a class="@(Model == "conferir" ? "ativa" : "")" href="/curadoria/conferir">Conferir o acervo</a>
+    <a class="@(Model == "desfalques" ? "ativa" : "")" href="/curadoria/desfalques">Desfalques</a>
+    <a class="@(Model == "colecoes" ? "ativa" : "")" href="/curadoria/colecoes">Coleções</a>
+</nav>

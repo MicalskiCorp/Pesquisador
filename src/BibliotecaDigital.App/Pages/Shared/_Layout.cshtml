@@ -1,0 +1,43 @@
+@inject BibliotecaDigital.App.Servicos Servicos
+@{
+    var secao = ViewData["Secao"] as string ?? "";
+    var titulo = ViewData["Titulo"] as string;
+    var instituicao = Servicos.Cfg.Instituicao is { Length: > 0 } i ? i : "Acervo digital";
+}
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <title>@(titulo is null ? "" : titulo + " · ")Biblioteca Digital</title>
+    <link rel="icon" href="/icone.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/estilo.css" asp-append-version="true">
+</head>
+<body>
+    <header class="topo">
+        <a class="marca" href="/">
+            <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="27" cy="27" r="15" fill="none" stroke="#e50914" stroke-width="6"/><path d="M38 38l14 14" stroke="#e50914" stroke-width="7" stroke-linecap="round"/></svg>
+            <span><strong>Biblioteca Digital</strong><small>@instituicao</small></span>
+        </a>
+        <nav>
+            <a href="/" class="@(secao == "buscar" ? "ativo" : "")">Buscar</a>
+            <a href="/acervo" class="@(secao == "acervo" ? "ativo" : "")">Acervo</a>
+            <a href="/curadoria/incluir" class="@(secao == "curadoria" ? "ativo" : "")">Curadoria</a>
+        </nav>
+        @if (ViewData["BuscaNoTopo"] is true)
+        {
+            <form class="busca-topo" action="/" method="get" role="search">
+                <input name="q" placeholder="Buscar no acervo…" aria-label="Buscar no acervo">
+            </form>
+        }
+    </header>
+    <main>
+        @RenderBody()
+    </main>
+    <footer class="rodape">
+        Texto da camada de OCR dos PDFs originais, conferido caractere por caractere em cada página. Busca por índice, sem inteligência artificial.
+    </footer>
+    <script src="/biblioteca.js" asp-append-version="true"></script>
+</body>
+</html>

@@ -1,0 +1,117 @@
+@page "/documento"
+@model DocumentoModel
+@{
+    ViewData["Secao"] = "acervo";
+    ViewData["Titulo"] = Model.Ficha.Titulo;
+    ViewData["BuscaNoTopo"] = true;
+    var f = Model.Ficha;
+    var modo = Model.Modo ?? "exato";
+    var paginaAtual = Model.Texto?.Paginas.FirstOrDefault(p => p.Numero == Model.P);
+    var linkErrata = "/curadoria/errata?id=" + Uri.EscapeDataString(Model.Id);
+}
+
+<div class="cabecalho-doc">
+    <div>
+        <div class="trilha"><a href="/acervo">Acervo</a> › <a href="/acervo?colecao=@Model.Colecao.Id">@Model.Colecao.Nome</a>@if (Model.Decada is { } dec) {<text> › <a href="/acervo?colecao=@Model.Colecao.Id&decada=@dec">@dec</a> › @Model.Ano</text>}</div>
+        <h1>@f.Titulo</h1>
+        <div class="trilha">
+            @f.Pdf.Paginas páginas · OCR: @(f.Pdf.Produtor ?? "não informado") · @Model.Texto?.Valor("fidelidade")
+            @if (f.Artigos.Count > 0) { <text> · @f.Artigos.Count artigos catalogados</text> }
+        </div>
+    </div>
+    <div class="acoes">
+        <a class="botao discreto p" href="@Model.UrlDoPdf&baixar=true">Baixar PDF</a>
+        <a class="botao discreto p" href="/texto?id=@Uri.EscapeDataString(Model.Id)">Texto (.md)</a>
+        @if (f.Pdf.UrlPublica is { } publica) { <a class="botao discreto p" href="@publica" target="_blank" rel="noreferrer">Original on-line</a> }
+        <a class="botao secundario p" href="@linkErrata&pagina=@Model.P">Errata</a>
+        <a class="botao secundario p" href="/curadoria/ficha?id=@Uri.EscapeDataString(Model.Id)">Editar ficha</a>
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.Q))
+{
+    <div class="ocorrencias-doc">
+        <span>“@Model.Q” nesta edição:</span>
+        @if (Model.Ocorrencias.Count == 0) { <span class="apagado">nenhuma página</span> }
+        @foreach (var n in Model.Ocorrencias)
+        {
+            <a class="@(n == Model.P ? "atual" : "")" href="@PaginaBase.LinkDoDocumento(Model.Id, n, Model.Q, modo)" data-pagina="@n" data-rolar>p. @n</a>
+        }
+    </div>
+}
+
+<div class="lado-a-lado">
+    <section class="painel" aria-label="PDF original">
+        <form class="barra" id="form-pagina" method="get" action="/documento">
+            <input type="hidden" name="id" value="@Model.Id">
+            @if (!string.IsNullOrWhiteSpace(Model.Q)) { <input type="hidden" name="q" value="@Model.Q"><input type="hidden" name="modo" value="@modo"> }
+            <span>Página</span>
+            <input id="pagina-pdf" name="p" value="@Model.P" inputmode="numeric" aria-label="Página do PDF">
+            <span>de @f.Pdf.Paginas</span>
+            <span class="etiqueta" id="impressa-atual" style="@(paginaAtual?.Impressa is null ? "display:none" : "")">impressa @paginaAtual?.Impressa</span>
+            <span class="espaco"></span>
+            <label class="vinculo" title="Rolar o PDF rola o texto, e vice-versa"><input type="checkbox" id="vincular" checked> rolagem vinculada</label>
+            <button type="button" class="botao discreto p" data-zoom="-1" aria-label="Diminuir o PDF">−</button>
+            <button type="button" class="botao discreto p" data-zoom="1" aria-label="Aumentar o PDF">+</button>
+            <a class="botao discreto p" id="abrir-original" href="@Model.UrlDoPdf#page=@Model.P" target="_blank" data-base="@Model.UrlDoPdf">PDF original</a>
+        </form>
+        <div class="paginas-pdf" id="paginas-pdf" data-realces="@Model.EnderecoDosRealces">
+            @for (var i = 0; i < Model.Tamanhos.Count; i++)
+            {
+                var n = i + 1;
+                var (w, h) = Model.Tamanhos[i];
+                var proporcao = $"auto {(int)Math.Round(w)} / {(int)Math.Round(h)}";
+                <figure class="pagina-pdf @(n == Model.P ? "atual" : "")" id="pdf-@n" data-numero="@n" data-ocorre="@(Model.Ocorrencias.Contains(n) ? "sim" : null)">
+                    <img loading="lazy" decoding="async" alt="Página @n do PDF" style="aspect-ratio: @proporcao"
+                         src="@Model.Imagem(n, 900)"
+                         srcset="@Model.Imagem(n, 900) 900w, @Model.Imagem(n, 1400) 1400w, @Model.Imagem(n, 2000) 2000w"
+                         sizes="(min-width: 961px) 50vw, 100vw">
+                    <figcaption>@n</figcaption>
+                </figure>
+            }
+        </div>
+    </section>
+
+    <section class="painel" aria-label="Texto do acervo">
+        <div class="barra">
+            <span>Texto da camada de OCR, na ordem de leitura</span>
+            <span class="espaco"></span>
+            <span class="apagado">selecione um trecho para registrar errata</span>
+        </div>
+        <div class="texto">
+            @if (Model.Texto is null)
+            {
+                <p class="sem-texto">O texto deste documento ainda não foi gerado.</p>
+            }
+            else
+            {
+                foreach (var p in Model.Texto.Paginas)
+                {
+                    var errata = f.Errata.Where(e => e.Pagina == p.Numero).ToList();
+                    <article class="folha @(p.Numero == Model.P ? "atual" : "")" id="pagina-@p.Numero" data-numero="@p.Numero" data-impressa="@p.Impressa">
+                        <div class="folha-titulo">
+                            <a href="@PaginaBase.LinkDoDocumento(Model.Id, p.Numero, Model.Q, modo)" data-pagina="@p.Numero" title="Mostrar esta página no PDF">Página @p.Numero</a>
+                            @if (p.Impressa is not null) { <span>impressa <strong>@p.Impressa</strong>@(p.OrigemImpressa == OrigemImpressa.Interpolada ? " (deduzida)" : "")</span> }
+                            <span class="selo @FormatoMarkdown.Nome(p.Fidelidade)" title="@DocumentoModel.ExplicacaoDaFidelidade(p.Fidelidade)">@DocumentoModel.NomeDaFidelidade(p.Fidelidade)</span>
+                            @if (p.Colunas > 1) { <span class="apagado">@p.Colunas colunas</span> }
+                        </div>
+                        @foreach (var m in Model.Margens(p)) { <div class="margem">@m</div> }
+                        @if (p.Paragrafos.Count == 0)
+                        {
+                            <p class="sem-texto">Esta página não tem texto na camada de OCR — veja a imagem no PDF.</p>
+                        }
+                        @for (var i = 0; i < p.Paragrafos.Count; i++)
+                        {
+                            var par = p.Paragrafos[i];
+                            var mudou = p.Colunas > 1 && i > 0 && p.Paragrafos[i - 1].Coluna != par.Coluna;
+                            var continua = mudou && par.Texto.Length > 0 && char.IsLower(par.Texto[0]);
+                            if (mudou) { <div class="coluna">coluna @par.Coluna</div> }
+                            <p class="@(continua ? "continua" : "")">@Realce.Paragrafo(par.Texto, Model.Casa, errata)</p>
+                        }
+                    </article>
+                }
+            }
+        </div>
+    </section>
+</div>
+<a id="errata-flutuante" class="botao p" data-base="@linkErrata" href="@linkErrata">Registrar errata deste trecho</a>

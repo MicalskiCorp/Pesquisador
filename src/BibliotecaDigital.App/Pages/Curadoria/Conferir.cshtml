@@ -1,0 +1,48 @@
+@page "/curadoria/conferir"
+@model BibliotecaDigital.App.Pages.Curadoria.ConferirModel
+@{
+    ViewData["Secao"] = "curadoria";
+    ViewData["Titulo"] = "Conferir o acervo";
+    var r = Model.Relatorio;
+}
+<h1 style="font-family: var(--leitura); font-weight: 600; margin: 0">Curadoria</h1>
+<partial name="_Abas" model="@("conferir")" />
+@if (Model.Mensagem is not null) { <div class="aviso ok">@Model.Mensagem</div> }
+<p class="suave" style="max-width:760px">Confere o acervo inteiro: toda edição tem ficha e texto, o texto foi gerado deste PDF pela versão atual do extrator, e cada página passou na conferência de fidelidade.</p>
+<form method="post" asp-page-handler="Conferir" class="acoes" style="margin-bottom:14px">
+    <span class="apagado pequeno">@(Model.Quando is { } q ? $"Conferido às {q:HH:mm} de {q:dd/MM}." : "Ainda não conferido.") @(Model.Auditando ? "Conferindo agora — recarregue em alguns segundos." : "")</span>
+    <button class="botao discreto p" @(Model.Auditando ? "disabled" : "")>Conferir de novo</button>
+</form>
+@if (r is null)
+{
+    <div class="aviso">A conferência está rodando (leva cerca de 15 segundos). Recarregue a página.</div>
+    return;
+}
+<div class="numeros">
+    <div><strong>@r.Documentos</strong><span>edições</span></div>
+    <div><strong>@r.Paginas.ToString("N0")</strong><span>páginas</span></div>
+    <div><strong>@r.Conferidas.ToString("N0")</strong><span>conferidas</span></div>
+    <div><strong>@r.Divergentes</strong><span>divergentes</span></div>
+    <div><strong>@r.SemTexto</strong><span>sem texto</span></div>
+</div>
+<div class="aviso @(r.SemProblemas ? "ok" : "erro")">@(r.SemProblemas ? "Sem problemas." : "Há pontos de atenção — veja abaixo.")</div>
+<form method="post" asp-page-handler="Reindexar" class="acoes" style="margin-bottom:22px">
+    <button class="botao secundario">Refazer o índice de busca</button>
+    <span class="apagado pequeno">Seguro a qualquer momento: o índice novo é montado ao lado e trocado no fim (cerca de um minuto).</span>
+</form>
+@if (r.Achados.Count > 0)
+{
+    <table class="tabela">
+        <thead><tr><th>Tipo</th><th>Edição</th><th>O quê</th></tr></thead>
+        <tbody>
+            @foreach (var a in r.Achados.OrderByDescending(x => x.Gravidade).Take(400))
+            {
+                <tr>
+                    <td class="apagado">@(a.Gravidade switch { BibliotecaDigital.Extracao.Gravidade.Problema => "problema", BibliotecaDigital.Extracao.Gravidade.Atencao => "atenção", _ => "nota" })</td>
+                    <td>@if (a.Documento.Contains('/')) { <a href="@Pages.PaginaBase.LinkDoDocumento(a.Documento)">@a.Documento.Split('/').Last()</a> } else { @a.Documento }</td>
+                    <td>@a.Mensagem</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="../tests/BibliotecaDigital.Testes/BibliotecaDigital.Testes.csproj" />
+  <Project Path="BibliotecaDigital.Acervo/BibliotecaDigital.Acervo.csproj" />
+  <Project Path="BibliotecaDigital.App/BibliotecaDigital.App.csproj" />
+  <Project Path="BibliotecaDigital.Busca/BibliotecaDigital.Busca.csproj" />
+  <Project Path="BibliotecaDigital.Extracao/BibliotecaDigital.Extracao.csproj" />
+</Solution>

@@ -1,0 +1,84 @@
+# Gera o pacote Windows e o assina pela SignPath Foundation (assinatura gratuita para código aberto).
+# Assinado, o biblioteca.exe passa pelo Controle Inteligente de Aplicativos do Windows 11, que
+# bloqueia executável sem assinatura de autoridade reconhecida.
+#
+# Dispara com uma tag v* (git tag v1.0.0; git push origin v1.0.0) ou à mão, pela aba Actions.
+# Com tag, publica uma Release com BibliotecaDigital-win-x64.zip, que o configurar.ps1 baixa.
+#
+# Precisa, no GitHub (Settings > Secrets and variables > Actions):
+#   secret   SIGNPATH_API_TOKEN          token do usuário de CI na SignPath
+#   variable SIGNPATH_ORGANIZATION_ID    id da organização na SignPath
+# e o projeto "biblioteca" com a política "release-signing" cadastrados na SignPath
+# (ver doc/assinatura.md).
+name: Pacote assinado
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write   # publicar a Release
+  actions: read     # a SignPath lê o artefato sem assinatura
+
+jobs:
+  pacote:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # Sem acervo e sem Poppler na máquina do CI, a bancada e o gabarito registram que não
+      # rodaram; os testes de regra e de arquitetura (nenhuma IA, nada de fora) rodam sempre.
+      - name: Testes
+        run: dotnet test src/BibliotecaDigital.slnx -c Release
+
+      - name: Publicar
+        run: >
+          dotnet publish src/BibliotecaDigital.App/BibliotecaDigital.App.csproj -c Release -r win-x64
+          --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:DebugType=none -o publicado/BibliotecaDigital
+
+      - name: Enviar sem assinatura
+        id: sem-assinatura
+        uses: actions/upload-artifact@v4
+        with:
+          name: BibliotecaDigital-sem-assinatura
+          path: publicado/BibliotecaDigital
+
+      - name: Assinar (SignPath)
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: biblioteca
+          signing-policy-slug: release-signing
+          github-artifact-id: ${{ steps.sem-assinatura.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: assinado/BibliotecaDigital
+
+      - name: Conferir assinatura
+        shell: pwsh
+        run: |
+          $s = Get-AuthenticodeSignature assinado/BibliotecaDigital/biblioteca.exe
+          if ($s.Status -ne 'Valid') { throw "biblioteca.exe não saiu assinado: $($s.Status)" }
+          Write-Host "Assinado por: $($s.SignerCertificate.Subject)"
+
+      - name: Compactar
+        shell: pwsh
+        run: Compress-Archive -Path assinado/BibliotecaDigital/* -DestinationPath BibliotecaDigital-win-x64.zip
+
+      - name: Guardar o pacote assinado
+        uses: actions/upload-artifact@v4
+        with:
+          name: BibliotecaDigital-win-x64
+          path: BibliotecaDigital-win-x64.zip
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create ${{ github.ref_name }} BibliotecaDigital-win-x64.zip --title ${{ github.ref_name }} --generate-notes

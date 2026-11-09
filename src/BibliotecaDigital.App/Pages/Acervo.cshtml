@@ -1,0 +1,56 @@
+@page "/acervo"
+@model AcervoModel
+@{
+    ViewData["Secao"] = "acervo";
+    ViewData["Titulo"] = "Acervo";
+    ViewData["BuscaNoTopo"] = true;
+}
+<h1 style="font-family: var(--leitura); font-weight: 600; margin: 0 0 4px">Acervo</h1>
+<p class="suave" style="margin:0 0 18px">@Model.Colecoes.Sum(c => c.Documentos).ToString("N0") documentos em @Model.Colecoes.Count(c => c.Documentos > 0) coleção(ões). Escolha a coleção e navegue.</p>
+
+<div class="colecoes">
+    @foreach (var c in Model.Colecoes)
+    {
+        <a class="colecao @(c == Model.Atual ? "ativa" : "")" href="/acervo?colecao=@c.Colecao.Id">
+            <strong>@c.Colecao.Nome</strong>
+            <span>@c.Documentos.ToString("N0") documentos · @c.Paginas.ToString("N0") páginas · @AcervoModel.Periodo(c)</span>
+        </a>
+    }
+</div>
+
+@if (Model.Atual is null)
+{
+    <div class="aviso">Nenhuma coleção cadastrada. Cadastre em <a href="/curadoria/colecoes">Curadoria → Coleções</a>.</div>
+}
+else if (Model.Decadas.Count == 0)
+{
+    <div class="aviso">@Model.Atual.Colecao.Nome ainda não tem documentos. Inclua em <a href="/curadoria/incluir?colecao=@Model.Atual.Colecao.Id">Curadoria → Incluir</a>.</div>
+}
+else
+{
+    @if (Model.Atual.Colecao.Descricao is { } desc) { <p class="suave" style="max-width:780px">@desc</p> }
+    @if (Model.Decadas.Count > 1)
+    {
+        <nav class="decadas">
+            @foreach (var d in Model.Decadas)
+            {
+                <a class="@(d == Model.Aberta ? "ativa" : "")" href="/acervo?colecao=@Model.Atual.Colecao.Id&decada=@d.Nome">@d.Nome<small>@d.Total</small></a>
+            }
+        </nav>
+    }
+    @foreach (var ano in Model.Aberta!.Anos)
+    {
+        <section class="ano">
+            @if (ano.Numero is not null || Model.Decadas.Count > 1) { <h2>@(ano.Numero?.ToString() ?? "Sem data")</h2> }
+            <div class="grade">
+                @foreach (var e in ano.Itens)
+                {
+                    <a class="edicao" href="@PaginaBase.LinkDoDocumento(e.Id)">
+                        <strong>@Navegacao.TituloCurto(e.Titulo, Model.Atual.Colecao.Nome)</strong>
+                        <span>@e.Paginas págs.</span>
+                    </a>
+                }
+            </div>
+        </section>
+    }
+}

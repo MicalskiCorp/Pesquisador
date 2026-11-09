@@ -1,0 +1,43 @@
+@page "/curadoria/errata"
+@model BibliotecaDigital.App.Pages.Curadoria.ErrataModel
+@{
+    ViewData["Secao"] = "curadoria";
+    ViewData["Titulo"] = "Errata — " + Model.Ficha.Titulo;
+}
+<div class="trilha"><a href="@Pages.PaginaBase.LinkDoDocumento(Model.Id, Model.Pagina)">← voltar à página @Model.Pagina</a></div>
+<h1 style="font-family: var(--leitura); font-weight: 600; margin: 6px 0 6px">Errata de OCR</h1>
+<p class="suave" style="max-width:720px">Quando a imagem do PDF mostra uma palavra e a leitura automática registrou outra, anote aqui a leitura correta.
+    O texto literal continua guardado como está no PDF; a correção passa a ser encontrada pela busca e aparece sublinhada no texto.</p>
+@if (Model.Erro is not null) { <div class="aviso erro">@Model.Erro</div> }
+@if (Model.Ok is not null) { <div class="aviso ok">@Model.Ok</div> }
+
+<div class="duas-colunas">
+    <form class="formulario" method="post" asp-page-handler="Registrar">
+        <input type="hidden" name="id" value="@Model.Id">
+        <p class="trilha" style="margin:0">@Model.Ficha.Titulo</p>
+        <label class="campo"><span>Página do PDF</span><input name="Pagina" value="@Model.Pagina" inputmode="numeric"></label>
+        <label class="campo"><span>Trecho literal, exatamente como está no texto</span><input name="Literal" value="@Model.Literal" placeholder="m pdido"></label>
+        <label class="campo"><span>Leitura correta, como está na imagem</span><input name="Leitura" value="" placeholder="medido" autofocus></label>
+        <label class="campo"><span>Seu nome</span><input name="Por" value="@Model.Nome" placeholder="Fica no histórico da ficha"></label>
+        <div class="acoes"><button class="botao">Registrar errata</button></div>
+    </form>
+    <aside>
+        <h2 style="font-size:16px; margin:0 0 10px">Erratas desta edição (@Model.Ficha.Errata.Count)</h2>
+        @if (Model.Ficha.Errata.Count == 0) { <p class="apagado">Nenhuma ainda.</p> }
+        <table class="tabela">
+            @foreach (var e in Model.Ficha.Errata.OrderBy(x => x.Pagina))
+            {
+                <tr>
+                    <td><a href="@Pages.PaginaBase.LinkDoDocumento(Model.Id, e.Pagina)">p. @e.Pagina</a></td>
+                    <td>“@e.Literal” → <strong>@e.Leitura</strong><br><small class="apagado">@e.Por · @e.Em.ToString("dd/MM/yyyy")</small></td>
+                    <td>
+                        <form method="post" asp-page-handler="Remover" onsubmit="return confirm('Remover esta errata?')">
+                            <input type="hidden" name="id" value="@Model.Id"><input type="hidden" name="errata" value="@e.Id"><input type="hidden" name="Pagina" value="@e.Pagina">
+                            <button class="botao discreto p">Remover</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </table>
+    </aside>
+</div>

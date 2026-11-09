@@ -1,0 +1,134 @@
+@page "/"
+@model IndexModel
+@{
+    ViewData["Secao"] = "buscar";
+    ViewData["Titulo"] = Model.Q is { Length: > 0 } q ? q : null;
+    var modo = Realce.Modo(Model.ModoAtual);
+    var r = Model.Resultado;
+}
+
+@if (r is null)
+{
+    <section class="capa">
+        <h1>O acervo, página por página.</h1>
+        <p>Procure um nome, um lugar, uma data ou um assunto em todo o acervo — ou só numa coleção. Cada resultado aponta o documento, a página do PDF original e a página impressa onde ele aparece.</p>
+        @await Html.PartialAsync("_FormularioDeBusca", Model)
+        @if (Model.Colecoes.Any(c => c.Documentos > 0))
+        {
+            <div class="numeros-capa">
+                <span><strong>@Model.Colecoes.Sum(c => c.Documentos).ToString("N0")</strong> documentos</span>
+                <span><strong>@Model.Colecoes.Sum(c => c.Paginas).ToString("N0")</strong> páginas</span>
+                @foreach (var c in Model.Colecoes.Where(c => c.Documentos > 0))
+                {
+                    <a href="/acervo?colecao=@c.Colecao.Id" class="suave">@c.Colecao.Nome · @c.Documentos.ToString("N0") · @AcervoModel.Periodo(c)</a>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="aviso" style="margin-top:24px">O índice de busca ainda não foi gerado. Na máquina do servidor: <code>biblioteca reindexar</code>.</div>
+        }
+    </section>
+}
+else
+{
+    @await Html.PartialAsync("_FormularioDeBusca", Model)
+
+    <section class="resultados">
+        @if (r.Aviso is not null)
+        {
+            <div class="aviso">@r.Aviso</div>
+        }
+        <div class="resumo">
+            @if (r.Documentos == 0)
+            {
+                <text>Nada encontrado.</text>
+            }
+            else
+            {
+                <text>@r.Documentos.ToString("N0") documentos · @r.Paginas.ToString("N0") páginas · @Math.Round(r.Milissegundos) ms</text>
+            }
+        </div>
+
+        @if (r.Variantes.Count > 0)
+        {
+            <form class="variantes" method="get" action="/">
+                <h3>Grafias incluídas nesta busca — desmarque as que não servem</h3>
+                <input type="hidden" name="q" value="@Model.Q">
+                <input type="hidden" name="modo" value="@modo">
+                @if (!string.IsNullOrEmpty(Model.Colecao)) { <input type="hidden" name="colecao" value="@Model.Colecao"> }
+                @if (Model.De is { } de) { <input type="hidden" name="de" value="@de"> }
+                @if (Model.Ate is { } ate) { <input type="hidden" name="ate" value="@ate"> }
+                @if (!string.IsNullOrWhiteSpace(Model.Autor)) { <input type="hidden" name="autor" value="@Model.Autor"> }
+                @foreach (var v in r.Variantes)
+                {
+                    <input type="hidden" name="todas" value="@v.Grafia">
+                    <label><input type="checkbox" name="manter" value="@v.Grafia" checked="@v.Incluida" data-enviar-ao-mudar> @v.Grafia <small>@v.Ocorrencias.ToString("N0")×</small></label>
+                }
+                <noscript><button class="botao p secundario">Aplicar</button></noscript>
+            </form>
+        }
+
+        @if (r.Documentos == 0 && Model.ModoAtual != Modo.Tolerante)
+        {
+            <div class="aviso">O texto vem da leitura automática (OCR) da digitalização, que erra. Tente o modo
+                <a href="@Model.Endereco("tolerante")">tolerante a OCR</a>, o começo da palavra com <code>*</code> ou a grafia da época (êste, côr, Destêrro).</div>
+        }
+
+        @if (r.Artigos.Count > 0)
+        {
+            <section class="artigos">
+                <h3>Artigos com esse título ou autor</h3>
+                @foreach (var a in r.Artigos.Take(5))
+                {
+                    <partial name="_Artigo" model="a" />
+                }
+                @if (r.Artigos.Count > 5)
+                {
+                    <details>
+                        <summary>mais @(r.Artigos.Count - 5) artigos</summary>
+                        @foreach (var a in r.Artigos.Skip(5)) { <partial name="_Artigo" model="a" /> }
+                    </details>
+                }
+            </section>
+        }
+
+        @foreach (var d in r.Itens)
+        {
+            <article class="resultado">
+                <h2><a href="@PaginaBase.LinkDoDocumento(d.Id, d.Destaques.FirstOrDefault()?.Numero, Model.Q, modo)">@d.Titulo</a></h2>
+                <div class="meta"><span class="colecao-etiqueta">@Model.NomeDaColecao(d.Colecao)</span> · @d.PaginasComOcorrencia.Count de @d.TotalDePaginas páginas com ocorrência</div>
+                @foreach (var p in d.Destaques)
+                {
+                    <div class="ocorrencia">
+                        <div class="rotulo">
+                            <a class="pagina" href="@PaginaBase.LinkDoDocumento(d.Id, p.Numero, Model.Q, modo)">Página @p.Numero do PDF</a>
+                            @if (p.Impressa is not null) { <span class="etiqueta">impressa @p.Impressa</span> }
+                            @foreach (var a in p.Artigos) { <span>@a.Titulo@(a.Autor is null ? "" : " — " + a.Autor)</span> }
+                        </div>
+                        @foreach (var t in p.Trechos) { <p class="trecho">@Realce.Trecho(t)</p> }
+                    </div>
+                }
+                @{
+                    var outras = d.PaginasComOcorrencia.Where(n => d.Destaques.All(x => x.Numero != n)).ToList();
+                }
+                @if (outras.Count > 0)
+                {
+                    <div class="outras">Também nas páginas
+                        @foreach (var n in outras.Take(80)) { <a href="@PaginaBase.LinkDoDocumento(d.Id, n, Model.Q, modo)">@n</a> }
+                        @(outras.Count > 80 ? "…" : "")
+                    </div>
+                }
+            </article>
+        }
+
+        @if (Model.TotalDePaginas > 1)
+        {
+            <nav class="paginacao">
+                @if (Model.Pagina > 1) { <a class="botao discreto" href="@Model.Endereco(pagina: Model.Pagina - 1)">Anterior</a> }
+                <span class="resumo">@Model.Pagina de @Model.TotalDePaginas</span>
+                @if (Model.Pagina < Model.TotalDePaginas) { <a class="botao discreto" href="@Model.Endereco(pagina: Model.Pagina + 1)">Próxima</a> }
+            </nav>
+        }
+    </section>
+}

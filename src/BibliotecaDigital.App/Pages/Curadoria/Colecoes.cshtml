@@ -1,0 +1,42 @@
+@page "/curadoria/colecoes"
+@{
+    ViewData["Secao"] = "curadoria";
+    ViewData["Titulo"] = "Coleções";
+    var s = (Servicos)HttpContext.RequestServices.GetService(typeof(Servicos))!;
+    var resumo = Navegacao.Resumo(s);
+    var msg = Request.Query["msg"].ToString();
+}
+<h1 style="font-family: var(--leitura); font-weight: 600; margin: 0">Curadoria</h1>
+<partial name="_Abas" model="@("colecoes")" />
+@if (msg.Length > 0) { <div class="aviso ok">@msg</div> }
+<p class="suave" style="max-width:820px">Cada coleção é um tipo de acervo — uma revista, um jornal, um fundo documental. Todos os documentos de todas as coleções
+    passam pelo mesmo caminho: PDF com OCR, texto por página conferido com o PDF, ficha e busca. O que muda de uma coleção para outra são os campos da ficha,
+    a organização das pastas e o título.</p>
+
+<table class="tabela" style="max-width:1000px; margin-bottom:26px">
+    <thead><tr><th>Coleção</th><th>Documentos</th><th>Campos da ficha</th><th>Pastas</th><th>Desfalques</th><th></th></tr></thead>
+    <tbody>
+        @foreach (var r in resumo)
+        {
+            <tr>
+                <td><strong>@r.Colecao.Nome</strong><br><span class="apagado pequeno">@r.Colecao.Id</span></td>
+                <td>@r.Documentos.ToString("N0")</td>
+                <td class="suave">@string.Join(", ", r.Colecao.Campos.Select(c => c.Rotulo))</td>
+                <td class="apagado">@(BibliotecaDigital.App.Pages.Curadoria.ColecaoModel.OpcoesDePasta.FirstOrDefault(o => o.Valor == r.Colecao.Pastas).Nome ?? r.Colecao.Pastas)</td>
+                <td class="apagado">@(r.Colecao.Numeracao is null ? "não" : "sim")</td>
+                <td><a class="botao discreto p" href="/curadoria/colecao?id=@r.Colecao.Id">Editar</a></td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<h2 style="font-size:16px; margin:0 0 10px">Nova coleção</h2>
+<div class="colecoes">
+    @foreach (var m in ModelosDeColecao.Todos)
+    {
+        <a class="colecao" href="/curadoria/colecao?modelo=@m.Id">
+            <strong>@m.Nome</strong>
+            <span>@m.Descricao</span>
+        </a>
+    }
+</div>

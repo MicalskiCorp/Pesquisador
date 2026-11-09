@@ -1,0 +1,5 @@
+@model ArtigoEncontrado
+<a href="@PaginaBase.LinkDoDocumento(Model.Documento, Model.PaginaDoPdf)">
+    <strong>@Model.Titulo</strong>
+    <span>@(Model.Autor ?? "autor não citado") · @Model.TituloDoDocumento@(Model.Paginas is null ? "" : $" · págs. {Model.Paginas}")</span>
+</a>

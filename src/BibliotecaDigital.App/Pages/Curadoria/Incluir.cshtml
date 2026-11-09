@@ -1,0 +1,162 @@
+@page "/curadoria/incluir"
+@model BibliotecaDigital.App.Pages.Curadoria.IncluirModel
+@{
+    ViewData["Secao"] = "curadoria";
+    ViewData["Titulo"] = "Incluir no acervo";
+}
+@if (Model.Lendo)
+{
+    // Enquanto a fila lê, a página se atualiza sozinha; a conferência só aparece com tudo lido.
+    <meta http-equiv="refresh" content="2">
+}
+<h1 style="font-family: var(--leitura); font-weight: 600; margin: 0">Curadoria</h1>
+<partial name="_Abas" model="@("incluir")" />
+@if (Model.Erro is not null) { <div class="aviso erro">@Model.Erro</div> }
+
+@if (Model.Previa is { } pv)
+{
+    // ---------------------------------------------------------------- prévia de um envio
+    <div class="trilha"><a href="/curadoria/incluir?lote=@pv.Lote">← voltar ao lote</a></div>
+    <h2 style="margin:6px 0 4px; font-size:18px">@pv.NomeDoArquivo</h2>
+    <p class="apagado pequeno" style="margin:0 0 12px">@Model.ColecaoDoLote!.Nome · @pv.Paginas páginas · @pv.Conferidas conferidas com o PDF · @pv.SemTexto sem texto</p>
+    @if (pv.Estado != EstadoDoEnvio.Pronto) { <div class="aviso">Este arquivo ainda não foi lido.</div> }
+    else
+    {
+        <div class="lado-a-lado" style="height: 70vh">
+            <section class="painel">
+                <div class="barra">
+                    @if (Model.P > 1) { <a class="botao discreto p" href="?envio=@pv.Id&p=@(Model.P - 1)">‹</a> }
+                    <span>Página @Model.P de @pv.Paginas</span>
+                    @if (Model.P < pv.Paginas) { <a class="botao discreto p" href="?envio=@pv.Id&p=@(Model.P + 1)">›</a> }
+                </div>
+                <div class="paginas-pdf"><figure class="pagina-pdf"><img alt="Página @Model.P do PDF enviado" src="/curadoria/envio/pagina?envio=@pv.Id&p=@Model.P&w=900"></figure></div>
+            </section>
+            <section class="painel">
+                <div class="barra"><span>Texto extraído da página @Model.P</span>
+                    @if (Model.PaginaDaPrevia is { } pg) { <span class="selo @FormatoMarkdown.Nome(pg.Fidelidade)">@DocumentoModel.NomeDaFidelidade(pg.Fidelidade)</span> }
+                </div>
+                <div class="texto"><div class="folha">
+                    @if (Model.PaginaDaPrevia is { } pag)
+                    {
+                        foreach (var m in pag.Margens) { <div class="margem">@m</div> }
+                        foreach (var p in pag.Paragrafos) { <p>@p.Texto</p> }
+                        if (pag.Paragrafos.Count == 0) { <p class="sem-texto">Sem texto nesta página.</p> }
+                    }
+                </div></div>
+            </section>
+        </div>
+    }
+}
+else if (Model.Lote is not null && Model.Lendo)
+{
+    // ---------------------------------------------------------------- lendo
+    var prontos = Model.Envios.Count(e => e.Estado is EstadoDoEnvio.Pronto or EstadoDoEnvio.Erro);
+    <div class="aviso">Lendo e conferindo os PDFs: <strong>@prontos de @Model.Envios.Count</strong> prontos. A página se atualiza sozinha.</div>
+    <table class="tabela" style="max-width:820px">
+        @foreach (var e in Model.Envios)
+        {
+            <tr><td>@e.NomeDoArquivo</td><td class="apagado">@(e.Estado switch { EstadoDoEnvio.NaFila => "na fila", EstadoDoEnvio.Lendo => "lendo…", EstadoDoEnvio.Pronto => $"pronto · {e.Conferidas} de {e.Paginas} páginas conferidas", _ => "erro: " + e.Erro })</td></tr>
+        }
+    </table>
+}
+else if (Model.Lote is not null && Model.ColecaoDoLote is { } col)
+{
+    // ---------------------------------------------------------------- conferência do lote
+    @if (Model.Resultados.Count > 0)
+    {
+        <div class="aviso ok">
+            @foreach (var r in Model.Resultados)
+            {
+                <div>@if (r.Id is not null) { <text>Incluído: <a href="@Pages.PaginaBase.LinkDoDocumento(r.Id)">@r.Arquivo</a></text> } else { <text><strong>Não incluído</strong> — @r.Arquivo: @r.Erro</text> }</div>
+            }
+        </div>
+    }
+    <p class="suave" style="max-width:860px; margin-top:0">Coleção <strong>@col.Nome</strong> · @Model.Envios.Count arquivo(s). Confira os campos de cada um — o sistema sugere pelo nome do arquivo e pela capa — e inclua os marcados.
+        “Prévia” mostra o PDF e o texto extraído lado a lado.</p>
+    <form method="post">
+        <input type="hidden" name="lote" value="@Model.Lote">
+        <div style="overflow-x:auto">
+        <table class="tabela lote">
+            <thead>
+                <tr>
+                    <th></th><th>Arquivo</th>
+                    @foreach (var c in col.Campos) { <th>@c.Rotulo@(c.Obrigatorio ? " *" : "")</th> }
+                    <th>Nome no acervo</th>
+                </tr>
+                <tr class="todos">
+                    <td></td><td class="apagado pequeno">Preencher em todos:</td>
+                    @foreach (var c in col.Campos) { <td><input name="Todos[@c.Chave]" aria-label="@c.Rotulo para todos"></td> }
+                    <td><button class="botao discreto p" formaction="?handler=Aplicar">Aplicar</button></td>
+                </tr>
+            </thead>
+            <tbody>
+                @for (var i = 0; i < Model.Envios.Count; i++)
+                {
+                    var e = Model.Envios[i];
+                    var pronto = e.Estado == EstadoDoEnvio.Pronto;
+                    var (caminho, erros, existe) = pronto ? Model.Destino(e) : ("", (IReadOnlyList<string>)[], false);
+                    // Marcada mesmo com campo faltando: a pessoa preenche e inclui de uma vez; o que ainda
+                    // estiver errado volta com o motivo, linha por linha. Duplicado vem desmarcado.
+                    var podeIncluir = pronto && e.DuplicadoDe is null;
+                    <tr>
+                        <td><input type="hidden" name="Linhas[@i].Id" value="@e.Id"><input type="checkbox" name="Linhas[@i].Incluir" value="true" checked="@podeIncluir" disabled="@(!pronto)" aria-label="Incluir @e.NomeDoArquivo"></td>
+                        <td style="min-width:220px">
+                            <strong>@e.NomeDoArquivo</strong>
+                            @if (pronto)
+                            {
+                                <div class="apagado pequeno">@e.Conferidas de @e.Paginas páginas conferidas · <a href="?envio=@e.Id">prévia</a></div>
+                                @if (!e.TemTexto) { <div class="pequeno" style="color:var(--erro)">sem camada de texto — não aparece na busca</div> }
+                                @if (e.DuplicadoDe is { } dup) { <div class="pequeno" style="color:var(--alerta)">já está no acervo: <a href="@Pages.PaginaBase.LinkDoDocumento(dup)">abrir</a></div> }
+                                <div class="destino" style="margin-top:4px; font-size:11px">@caminho</div>
+                                @if (existe && e.DuplicadoDe is null) { <div class="pequeno" style="color:var(--erro)">já existe outro arquivo neste lugar</div> }
+                                @foreach (var er in erros) { <div class="pequeno" style="color:var(--erro)">@er</div> }
+                            }
+                            else { <div class="pequeno" style="color:var(--erro)">@e.Erro</div> }
+                        </td>
+                        @foreach (var c in col.Campos)
+                        {
+                            <td>
+                                @if (c.Tipo == TiposDeCampo.Opcoes && c.Opcoes is { Count: > 0 } ops)
+                                {
+                                    <select name="Linhas[@i].Campos[@c.Chave]" class="entrada" style="height:30px">
+                                        <option value=""></option>
+                                        @foreach (var o in ops) { <option selected="@(string.Equals(e.Campos.GetValueOrDefault(c.Chave), o, StringComparison.OrdinalIgnoreCase))">@o</option> }
+                                    </select>
+                                }
+                                else { <input name="Linhas[@i].Campos[@c.Chave]" value="@e.Campos.GetValueOrDefault(c.Chave)" placeholder="@(c.Tipo == TiposDeCampo.Data ? "dd/mm/aaaa" : "")" aria-label="@c.Rotulo"> }
+                            </td>
+                        }
+                        <td style="min-width:200px"><input name="Linhas[@i].Nome" value="@e.NomeDoArquivo" aria-label="Nome no acervo"></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+        </div>
+        <div class="formulario" style="margin-top:16px">
+            <label class="campo"><span>Seu nome</span><input name="Por" value="@Model.Nome" placeholder="Fica no histórico da ficha"></label>
+            <div class="acoes">
+                <button class="botao" formaction="?handler=Incluir">Incluir os marcados</button>
+                <button class="botao discreto" formaction="?handler=Aplicar">Salvar e conferir de novo</button>
+                <button class="botao discreto" formaction="?handler=Descartar" formnovalidate onclick="return confirm('Descartar todos os arquivos deste lote?')">Descartar o lote</button>
+            </div>
+        </div>
+    </form>
+}
+else
+{
+    // ---------------------------------------------------------------- enviar
+    <form class="formulario" method="post" enctype="multipart/form-data" asp-page-handler="Enviar">
+        <p class="suave" style="margin:0">Escolha a coleção e envie um ou vários PDFs — os arquivos com a camada de texto do OCR, como saem do scanner com OCR ligado.
+            Cada PDF é lido e conferido caractere por caractere; depois você confere os campos de todos numa tabela. Nada entra no acervo sem a sua confirmação.</p>
+        <label class="campo"><span>Coleção</span>
+            <select name="colecao" required>
+                @if (Model.Colecoes.Count != 1) { <option value="">— escolha —</option> }
+                @foreach (var c in Model.Colecoes) { <option value="@c.Id" selected="@(c.Id == Model.Colecao)">@c.Nome</option> }
+            </select>
+            <small>Não está na lista? Cadastre o tipo de acervo em <a href="/curadoria/colecoes">Coleções</a>.</small>
+        </label>
+        <label class="campo"><span>PDFs</span><input type="file" name="arquivos" accept="application/pdf" multiple required><small>Pode escolher vários de uma vez.</small></label>
+        <label class="campo"><span>Seu nome</span><input name="por" value="@Model.Nome" placeholder="Fica no histórico da ficha"></label>
+        <div class="acoes"><button class="botao">Enviar e conferir</button><span class="apagado pequeno">A leitura leva alguns segundos por PDF.</span></div>
+    </form>
+}

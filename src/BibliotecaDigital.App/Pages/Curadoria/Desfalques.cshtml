@@ -1,0 +1,37 @@
+@page "/curadoria/desfalques"
+@model BibliotecaDigital.App.Pages.Curadoria.DesfalquesModel
+@{
+    ViewData["Secao"] = "curadoria";
+    ViewData["Titulo"] = "Desfalques";
+}
+<h1 style="font-family: var(--leitura); font-weight: 600; margin: 0">Curadoria</h1>
+<partial name="_Abas" model="@("desfalques")" />
+@if (Model.Atual is null)
+{
+    <p class="suave">Nenhuma coleção tem numeração configurada. Desfalques existem para periódicos (revista, jornal): configure a numeração da coleção em <a href="/curadoria/colecoes">Coleções</a>.</p>
+    return;
+}
+@if (Model.ComNumeracao.Count > 1)
+{
+    <nav class="decadas">
+        @foreach (var c in Model.ComNumeracao) { <a class="@(c == Model.Atual ? "ativa" : "")" href="?colecao=@c.Id">@c.Nome</a> }
+    </nav>
+}
+<p class="suave" style="max-width:780px">Edições de <strong>@Model.Atual.Nome</strong> que deveriam existir pela numeração e não estão no acervo (@Model.Documentos documentos hoje).
+    A lista só diminui quando o documento entra no acervo. A relação de todas as coleções, para entregar à instituição, sai com <code>biblioteca desfalques</code>, em <code>acervo/DESFALQUES.md</code>.</p>
+@if (Model.Lista.Count == 0)
+{
+    <div class="aviso ok">Nenhum desfalque: a numeração está completa.</div>
+}
+else
+{
+    <table class="tabela" style="max-width:1100px">
+        <thead><tr><th>@Desfalques.Rotulo(Model.Atual)</th><th>Ano</th><th>Número</th><th>Situação</th><th>Observação</th></tr></thead>
+        <tbody>
+            @foreach (var d in Model.Lista)
+            {
+                <tr><td>@d.Grupo</td><td>@d.Ano</td><td>@d.Numero</td><td>@d.Situacao</td><td class="suave">@d.Observacao</td></tr>
+            }
+        </tbody>
+    </table>
+}

@@ -1,0 +1,57 @@
+[
+  {
+    "id": "revista-exemplo",
+    "nome": "Revista Exemplo",
+    "descricao": "Revista fictícia, usada só nos testes: tomos anuais, números mensais e depois bimestrais.",
+    "pastas": "{decada}/{ano}",
+    "titulo": "Revista Exemplo — Tomo {tomo}, n.º {numero} ({meses} {ano})",
+    "campos": [
+      {
+        "chave": "ano",
+        "rotulo": "Ano",
+        "obrigatorio": true,
+        "ajuda": "Ano da edição. Define a pasta: década e ano.",
+        "tipo": "ano"
+      },
+      {
+        "chave": "tomo",
+        "rotulo": "Tomo",
+        "obrigatorio": true,
+        "ajuda": "Em romano ou em arábico."
+      },
+      {
+        "chave": "numero",
+        "rotulo": "Número",
+        "ajuda": "Como impresso na capa: 01, 06 a 10, 11-12."
+      },
+      {
+        "chave": "meses",
+        "rotulo": "Mês(es)",
+        "ajuda": "Janeiro, Julho-Agosto…"
+      }
+    ],
+    "nomesDeArquivo": [
+      "^T?omo\\s+(?<tomo>[IVXLC]+|\\d+)\\s*-?\\s*n\\.?\\s*(?<numero>\\d+(?:\\s*(?:-|a)\\s*\\d+)?)\\s*-?\\s*(?<meses>\\D.*)?$",
+      "^Revista Exemplo\\s+(?<tomo>\\d+)\\s*-\\s*\\d{4}\\s*-\\s*(?<numero>\\d+)\\s*(?<meses>.*)$"
+    ],
+    "extracao": {
+      "desfazerMeiaLargura": true,
+      "margens": [
+        "^Digitalizado pela institui"
+      ]
+    },
+    "numeracao": {
+      "grupo": "tomo",
+      "numero": "numero",
+      "faixas": [
+        {
+          "edicoes": 12,
+          "ateAno": 2007
+        },
+        {
+          "edicoes": 6
+        }
+      ]
+    }
+  }
+]
